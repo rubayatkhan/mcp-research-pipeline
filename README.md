@@ -18,7 +18,7 @@ NotebookLM acts as a free RAG system — Google pays for the analysis tokens. Th
 - Python 3.10+
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
 
-### Install
+### Step 1: Clone and install
 
 ```bash
 git clone https://github.com/rubayatkhan/mcp-research-pipeline.git
@@ -26,9 +26,57 @@ cd mcp-research-pipeline
 uv sync
 ```
 
-### Configure Claude Desktop
+### Step 2: Install Playwright browser
 
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+NotebookLM requires a Chromium browser for authentication. This is a one-time setup:
+
+```bash
+uv run python -m playwright install chromium
+```
+
+> **Note:** `playwright` is not a standalone CLI command — it's bundled inside the project's virtual environment. Always run it with `uv run python -m playwright`, not just `playwright`.
+
+### Step 3: Authenticate with NotebookLM (optional)
+
+```bash
+uv run notebooklm login
+```
+
+This opens a browser window for Google sign-in. Your credentials are saved at `~/.notebooklm/storage_state.json` and persist across server restarts.
+
+> **Skip this step** if you only want YouTube transcript/search tools. NotebookLM tools will return a helpful error message telling you to authenticate.
+
+### Step 4: Get a TranscriptAPI key (optional)
+
+Sign up at [transcriptapi.com](https://transcriptapi.com) to get an API key. You get **100 free credits**.
+
+> **Skip this step** if you only need `get_transcript` (which is free and keyless). The search, channel, and playlist tools require this key.
+
+### Step 5: Configure Claude Desktop
+
+Add to your Claude Desktop config:
+
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+**Option A — Direct venv script (recommended, avoids path issues):**
+
+```json
+{
+  "mcpServers": {
+    "research-pipeline": {
+      "command": "/absolute/path/to/mcp-research-pipeline/.venv/bin/mcp-research-pipeline",
+      "env": {
+        "TRANSCRIPT_API_KEY": "your-key-here"
+      }
+    }
+  }
+}
+```
+
+Replace `/absolute/path/to/mcp-research-pipeline` with your actual clone location. Leave `TRANSCRIPT_API_KEY` empty or omit the `env` block if you don't have a key yet.
+
+**Option B — Using uv run (only if your path has no spaces):**
 
 ```json
 {
@@ -37,7 +85,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
       "command": "uv",
       "args": [
         "run",
-        "--directory", "/path/to/mcp-research-pipeline",
+        "--directory", "/absolute/path/to/mcp-research-pipeline",
         "python", "-m", "mcp_research_pipeline"
       ],
       "env": {
@@ -48,19 +96,43 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 }
 ```
 
-### Authentication
+> **Warning:** Option B fails if your path contains spaces (e.g., iCloud Drive, OneDrive, Google Drive). Use Option A instead.
 
-**YouTube Transcripts** — works immediately, no setup needed.
+### Step 6: Restart Claude Desktop
 
-**YouTube Search** (optional) — sign up at [transcriptapi.com](https://transcriptapi.com), get an API key, set `TRANSCRIPT_API_KEY` in your env or Claude Desktop config. You get 100 free credits.
+Fully quit Claude Desktop (Cmd+Q / Ctrl+Q) and reopen it. The research-pipeline server should appear in your MCP tools.
 
-**NotebookLM** (optional) — run the login command once:
+## Troubleshooting
 
-```bash
-uv run notebooklm login
-```
+### "Server disconnected" in Claude Desktop
 
-This opens a browser for Google authentication. Credentials are saved at `~/.notebooklm/storage_state.json`.
+Check the server log at `~/Library/Logs/Claude/mcp-server-research-pipeline.log` (macOS). Common causes:
+
+| Error | Fix |
+|-------|-----|
+| `No module named mcp_research_pipeline` | Your path has spaces. Switch to Option A (direct venv script). |
+| `No module named playwright` | Run `uv run python -m playwright install chromium` in the project directory. |
+| `command not found: playwright` | Don't use `playwright` directly. Use `uv run python -m playwright install chromium`. |
+| Server starts then immediately disconnects | NotebookLM auth may have expired. Run `uv run notebooklm login` again. |
+
+### "NotebookLM is not connected"
+
+Run `uv run notebooklm login` in the project directory. This opens a browser for Google authentication.
+
+### "TRANSCRIPT_API_KEY" errors
+
+The `get_transcript` tool works without any API key. Only `search_youtube`, `get_channel_latest`, `get_channel_videos`, and `get_playlist_videos` need a TranscriptAPI.com key.
+
+### Paths with spaces (iCloud, OneDrive, Google Drive)
+
+If your project lives in a path with spaces (like `~/Library/Mobile Documents/com~apple~CloudDocs/`), the `uv run --directory` approach will fail. Two options:
+
+1. **Use Option A** (direct venv script path) — this always works.
+2. **Create a symlink** to a path without spaces:
+   ```bash
+   ln -sf "/path/with spaces/mcp-research-pipeline" ~/mcp-research-pipeline
+   ```
+   Then point Claude Desktop at `~/mcp-research-pipeline/.venv/bin/mcp-research-pipeline`.
 
 ## Tools (15 total)
 
@@ -118,7 +190,7 @@ uv run pytest
 # Lint
 uv run ruff check src/ tests/
 
-# Run server locally
+# Run server locally (stdio mode)
 uv run python -m mcp_research_pipeline
 ```
 
