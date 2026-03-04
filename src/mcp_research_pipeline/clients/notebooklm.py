@@ -45,7 +45,7 @@ class NotebookLMClientWrapper:
                 "notebook_id": nb.id,
                 "name": nb.title,
                 "created_at": _fmt_dt(nb.created_at),
-                "source_count": nb.source_count,
+                "source_count": nb.sources_count,
             }
             for nb in notebooks
         ]
